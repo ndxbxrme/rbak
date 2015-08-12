@@ -16,11 +16,11 @@ npm install --save rbak
 ```
 
 ## Usage
-### Stand alone
+*Stand alone*
 ```sh
 rbak [command] [options]
 ```
-### As a module
+*As a module*
 ```js
 var rbak = require('rbak');
 

@@ -30,16 +30,16 @@ rbak.[command]({
 ```
 
 ## Commands
-`backup`
-`list`
-`restore`
+`backup`  
+`list`  
+`restore`  
 
 ## Options
-`--base` - Where your backup lives
-`--dir` - Directory to backup or directory in backup to list/restore
-`--ignore` - Comma seperated list of files/directories to ignore globally
-`--recursive` - true/false, defaults to true
-`--respect-gitignore` - true/false, defaults to true
+`--base` - Where your backup lives  
+`--dir` - Directory to backup or directory in backup to list/restore  
+`--ignore` - Comma seperated list of files/directories to ignore globally  
+`--recursive` - true/false, defaults to true  
+`--respect-gitignore` - true/false, defaults to true  
 
 ## Examples
 Backup `DEV` dir into a folder called `backup` ignoring a bunch of files

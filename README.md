@@ -55,3 +55,6 @@ Restore files from a backed up folder
 ```sh
 rbak restore --base=D:/backup --dir=github/rbak --out=D:/rbak
 ```
+
+## Known issues
+* Gets upset about really big files, make sure you ignore them

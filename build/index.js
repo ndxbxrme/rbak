@@ -36,29 +36,31 @@
   listBackedUpFiles = function(dir, base) {
     var backupDir, currentDir, deleted, file, fileStats, files, i, j, len, len1, output;
     output = {};
-    for (i = 0, len = backupDirs.length; i < len; i++) {
-      backupDir = backupDirs[i];
-      currentDir = path.join(backupDir, dir.replace(base, ''));
-      if (fs.existsSync(currentDir)) {
-        files = fs.readdirSync(currentDir);
-        for (j = 0, len1 = files.length; j < len1; j++) {
-          file = files[j];
-          fileStats = fs.lstatSync(path.join(currentDir, file));
-          deleted = false;
-          if (file.match(/\.deleted$/)) {
-            deleted = true;
-            file = file.replace(/\.deleted$/, '');
-          }
-          if (!output[file]) {
-            output[file] = {
-              backupDir: backupDir,
-              atime: fileStats.atime,
-              mtime: fileStats.mtime,
-              size: fileStats.size,
-              isFile: fileStats.isFile(),
-              isDirectory: fileStats.isDirectory(),
-              deleted: deleted
-            };
+    if (backupDirs) {
+      for (i = 0, len = backupDirs.length; i < len; i++) {
+        backupDir = backupDirs[i];
+        currentDir = path.join(backupDir, dir.replace(base, ''));
+        if (fs.existsSync(currentDir)) {
+          files = fs.readdirSync(currentDir);
+          for (j = 0, len1 = files.length; j < len1; j++) {
+            file = files[j];
+            fileStats = fs.lstatSync(path.join(currentDir, file));
+            deleted = false;
+            if (file.match(/\.deleted$/)) {
+              deleted = true;
+              file = file.replace(/\.deleted$/, '');
+            }
+            if (!output[file]) {
+              output[file] = {
+                backupDir: backupDir,
+                atime: fileStats.atime,
+                mtime: fileStats.mtime,
+                size: fileStats.size,
+                isFile: fileStats.isFile(),
+                isDirectory: fileStats.isDirectory(),
+                deleted: deleted
+              };
+            }
           }
         }
       }
@@ -69,17 +71,19 @@
   listBackupDirectories = function(dir) {
     var file, files, i, len, output;
     output = [];
-    files = fs.readdirSync(dir);
-    for (i = 0, len = files.length; i < len; i++) {
-      file = files[i];
-      if (file.length === 14 && file.replace(/\d/g, '') === '') {
-        if (fs.lstatSync(path.join(dir, file)).isDirectory()) {
-          output.push(path.join(dir, file));
+    if (fs.existsSync(dir)) {
+      files = fs.readdirSync(dir);
+      for (i = 0, len = files.length; i < len; i++) {
+        file = files[i];
+        if (file.length === 14 && file.replace(/\d/g, '') === '') {
+          if (fs.lstatSync(path.join(dir, file)).isDirectory()) {
+            output.push(path.join(dir, file));
+          }
         }
       }
+      output.sort();
+      return output.reverse();
     }
-    output.sort();
-    return output.reverse();
   };
 
   readGitignore = function(dir) {
@@ -247,14 +251,14 @@
     for (file in backedUpFiles) {
       fileStats = backedUpFiles[file];
       if (!fileStats.deleted && fileStats.isDirectory) {
-        console.log(chalk.yellow.bold('[DIR]', file));
+        console.log(chalk.yellow.bold('  [DIR]', file));
       }
     }
     results = [];
     for (file in backedUpFiles) {
       fileStats = backedUpFiles[file];
       if (!fileStats.deleted && fileStats.isFile) {
-        results.push(console.log(chalk.green.bold(file)));
+        results.push(console.log(chalk.green.bold('  ' + file)));
       } else {
         results.push(void 0);
       }
@@ -262,9 +266,9 @@
     return results;
   };
 
-  rbak = function(args) {
-    var command, dir;
-    command = (args != null ? args.command : void 0) || argv._[0] || 'backup';
+  rbak = function(args, command) {
+    var dir;
+    command = command || argv._[0] || 'backup';
     dir = (args != null ? args.dir : void 0) || argv.dir || (command === 'backup' ? process.cwd() : '');
     baseDir = baseOut = out = '';
     if (command === 'backup') {
@@ -309,5 +313,17 @@
   if (require.main === module) {
     rbak();
   }
+
+  module.exports = {
+    backup: function(args) {
+      return rbak(args, 'backup');
+    },
+    list: function(args) {
+      return rbak(args, 'list');
+    },
+    restore: function(args) {
+      return rbak(args, 'restore');
+    }
+  };
 
 }).call(this);

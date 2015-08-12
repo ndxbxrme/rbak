@@ -18,37 +18,39 @@ backupDirs = []
 listBackedUpFiles = (dir, base) ->
   #work backwards through backupDirs
   output = {}
-  for backupDir in backupDirs
-    currentDir = path.join backupDir, dir.replace(base, '')
-    if fs.existsSync currentDir
-      files = fs.readdirSync currentDir
-      for file in files
-        fileStats = fs.lstatSync path.join(currentDir, file)
-        deleted = false
-        if file.match(/\.deleted$/)
-          deleted = true
-          file = file.replace /\.deleted$/, ''
-        if not output[file]
-          output[file] =
-            backupDir: backupDir
-            atime: fileStats.atime
-            mtime: fileStats.mtime
-            size: fileStats.size
-            isFile: fileStats.isFile()
-            isDirectory: fileStats.isDirectory()
-            deleted: deleted
+  if backupDirs
+    for backupDir in backupDirs
+      currentDir = path.join backupDir, dir.replace(base, '')
+      if fs.existsSync currentDir
+        files = fs.readdirSync currentDir
+        for file in files
+          fileStats = fs.lstatSync path.join(currentDir, file)
+          deleted = false
+          if file.match(/\.deleted$/)
+            deleted = true
+            file = file.replace /\.deleted$/, ''
+          if not output[file]
+            output[file] =
+              backupDir: backupDir
+              atime: fileStats.atime
+              mtime: fileStats.mtime
+              size: fileStats.size
+              isFile: fileStats.isFile()
+              isDirectory: fileStats.isDirectory()
+              deleted: deleted
   return output
 
 
 listBackupDirectories = (dir) ->
   output = []
-  files = fs.readdirSync dir
-  for file in files
-    if file.length is 14 and file.replace(/\d/g, '') is ''
-      if fs.lstatSync(path.join(dir,file)).isDirectory()
-        output.push path.join(dir,file)
-  output.sort()
-  output.reverse()
+  if fs.existsSync dir
+    files = fs.readdirSync dir
+    for file in files
+      if file.length is 14 and file.replace(/\d/g, '') is ''
+        if fs.lstatSync(path.join(dir,file)).isDirectory()
+          output.push path.join(dir,file)
+    output.sort()
+    output.reverse()
   
       
 
@@ -143,13 +145,13 @@ listDirectory = (dir) ->
   backedUpFiles = listBackedUpFiles dir
   for file, fileStats of backedUpFiles
     if not fileStats.deleted and fileStats.isDirectory
-      console.log chalk.yellow.bold('[DIR]', file)
+      console.log chalk.yellow.bold('  [DIR]', file)
   for file, fileStats of backedUpFiles
     if not fileStats.deleted and fileStats.isFile
-      console.log chalk.green.bold(file)
+      console.log chalk.green.bold('  ' + file)
   
-rbak = (args) ->
-  command = args?.command or argv._[0] or 'backup'
+rbak = (args, command) ->
+  command = command or argv._[0] or 'backup'
   dir = args?.dir or argv.dir or (if command is 'backup' then process.cwd() else '')
   baseDir = baseOut = out = ''
   if command is 'backup'
@@ -178,3 +180,11 @@ rbak = (args) ->
 
 if require.main is module
   rbak()
+
+module.exports = 
+  backup: (args) ->
+    rbak args, 'backup'
+  list: (args) ->
+    rbak args, 'list'
+  restore: (args) ->
+    rbak args, 'restore'

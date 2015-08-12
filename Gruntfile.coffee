@@ -14,6 +14,16 @@ module.exports = (grunt) ->
         src: ['**/*.coffee']
         expand: true
         ext: '.js'
+    coffeelint:
+      main:
+        files:
+          src: [
+            'src/**/*.coffee'
+            'Gruntfile.coffee'
+          ]
+        options:
+          'no_trailing_whitespace': level: 'ignore'
+          'max_line_length': level: 'ignore'
     file_append:
       main:
         files: [{
@@ -25,4 +35,7 @@ module.exports = (grunt) ->
     'coffee'
     'file_append'
     'watch'
+  ]
+  grunt.registerTask 'test', [
+    'coffeelint'
   ]

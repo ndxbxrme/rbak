@@ -2,15 +2,20 @@
 //'use strict';
 (function() {
   'use strict';
-  var argv, backupDirectory, baseDir, copy, fs, iShouldBackupDirectory, iShouldBackupFile, ignores, minimatch, out, path, rbak, recursive;
+  var argv, backupDirectory, backupDirs, baseDir, baseOut, chalk, dateFormatter, fs, iShouldBackupDirectory, iShouldBackupFile, ignores, listBackedUpFiles, listBackupDirectories, listDirectory, minimatch, mkdirp, out, path, rbak, readGitignore, recursive, respectGitignores, restoreDirectory,
+    hasProp = {}.hasOwnProperty;
 
   fs = require('fs');
+
+  mkdirp = require('mkdirp');
 
   minimatch = require('minimatch');
 
   path = require('path');
 
-  copy = new (require('task-copy'));
+  dateFormatter = require('date-format');
+
+  chalk = require('chalk');
 
   argv = require('minimist')(process.argv.slice(2));
 
@@ -20,11 +25,91 @@
 
   baseDir = '';
 
+  baseOut = '';
+
   out = '';
 
-  iShouldBackupFile = function(uri) {
-    var fileIsGood, i, ignore, len;
-    fileIsGood = fs.lstatSync(uri).isFile();
+  respectGitignores = true;
+
+  backupDirs = [];
+
+  listBackedUpFiles = function(dir, base) {
+    var backupDir, currentDir, deleted, file, fileStats, files, i, j, len, len1, output;
+    output = {};
+    for (i = 0, len = backupDirs.length; i < len; i++) {
+      backupDir = backupDirs[i];
+      currentDir = path.join(backupDir, dir.replace(base, ''));
+      if (fs.existsSync(currentDir)) {
+        files = fs.readdirSync(currentDir);
+        for (j = 0, len1 = files.length; j < len1; j++) {
+          file = files[j];
+          fileStats = fs.lstatSync(path.join(currentDir, file));
+          deleted = false;
+          if (file.match(/\.deleted$/)) {
+            deleted = true;
+            file = file.replace(/\.deleted$/, '');
+          }
+          if (!output[file]) {
+            output[file] = {
+              backupDir: backupDir,
+              atime: fileStats.atime,
+              mtime: fileStats.mtime,
+              size: fileStats.size,
+              isFile: fileStats.isFile(),
+              isDirectory: fileStats.isDirectory(),
+              deleted: deleted
+            };
+          }
+        }
+      }
+    }
+    return output;
+  };
+
+  listBackupDirectories = function(dir) {
+    var file, files, i, len, output;
+    output = [];
+    files = fs.readdirSync(dir);
+    for (i = 0, len = files.length; i < len; i++) {
+      file = files[i];
+      if (file.length === 14 && file.replace(/\d/g, '') === '') {
+        if (fs.lstatSync(path.join(dir, file)).isDirectory()) {
+          output.push(path.join(dir, file));
+        }
+      }
+    }
+    output.sort();
+    return output.reverse();
+  };
+
+  readGitignore = function(dir) {
+    var data, i, ignorePath, len, line, lines, localIgnores;
+    ignorePath = path.join(dir, '.gitignore');
+    localIgnores = [];
+    if (fs.existsSync(ignorePath)) {
+      if (fs.lstatSync(ignorePath).isFile()) {
+        data = fs.readFileSync(ignorePath, {
+          encoding: 'utf8'
+        });
+        if (data) {
+          lines = data.split(/\n/g);
+          for (i = 0, len = lines.length; i < len; i++) {
+            line = lines[i];
+            line = line.replace(/\s/g, '');
+            if (line && line.length && line.indexOf('#') !== 0) {
+              localIgnores.push(line);
+            }
+          }
+        }
+      }
+    }
+    return localIgnores;
+  };
+
+  iShouldBackupFile = function(uri, file, localIgnores, backedUpFiles) {
+    var backup, fileIsGood, fileStats, i, ignore, j, len, len1;
+    fileStats = fs.lstatSync(uri);
+    fileIsGood = fileStats.isFile();
     if (!fileIsGood) {
       return false;
     }
@@ -34,12 +119,26 @@
         return false;
       }
     }
+    for (j = 0, len1 = localIgnores.length; j < len1; j++) {
+      ignore = localIgnores[j];
+      if (minimatch(uri, '**/' + ignore)) {
+        return false;
+      }
+    }
+    backup = backedUpFiles[file];
+    if (backup && backup.isFile && backup.mtime + '' === fileStats.mtime + '' && !backup.deleted) {
+      return false;
+    }
     return true;
   };
 
-  iShouldBackupDirectory = function(uri) {
-    var directoryIsGood, i, ignore, len;
-    directoryIsGood = fs.lstatSync(uri).isDirectory();
+  iShouldBackupDirectory = function(uri, file, localIgnores, backedUpFiles) {
+    var backup, directoryIsGood, fileStats, i, ignore, j, len, len1;
+    if (!recursive) {
+      return false;
+    }
+    fileStats = fs.lstatSync(uri);
+    directoryIsGood = fileStats.isDirectory();
     if (!directoryIsGood) {
       return false;
     }
@@ -49,28 +148,113 @@
         return false;
       }
     }
+    for (j = 0, len1 = localIgnores.length; j < len1; j++) {
+      ignore = localIgnores[j];
+      if (minimatch(uri, '**/' + ignore)) {
+        return false;
+      }
+    }
+    backup = backedUpFiles[file];
+    if (backup && backup.isDirectory && backup.mtime + '' === fileStats.mtime + '' && !backup.deleted) {
+      return false;
+    }
     return true;
   };
 
-  backupDirectory = function(dir) {
-    var file, files, i, j, len, len1, results, uri;
+  backupDirectory = function(dir, localIgnores) {
+    var backedUpFiles, dest, destDir, file, fileStats, files, i, j, len, len1, results, uri;
+    if (respectGitignores) {
+      localIgnores = readGitignore(dir) || localIgnores;
+    }
+    backedUpFiles = listBackedUpFiles(dir, baseDir);
+    destDir = path.join(out, dir.replace(baseDir, ''));
+    console.log(dir);
     files = fs.readdirSync(dir);
     for (i = 0, len = files.length; i < len; i++) {
       file = files[i];
       uri = path.join(dir, file);
-      if (iShouldBackupFile(uri)) {
-        console.log('copying', dir, file);
-        copy.run(uri, {
-          dest: path.join(out, dir.replace(baseDir, ''), file)
-        });
+      if (iShouldBackupFile(uri, file, localIgnores, backedUpFiles)) {
+        dest = path.join(destDir, file);
+        if (!fs.existsSync(destDir)) {
+          mkdirp.sync(destDir);
+        }
+        fs.writeFileSync(dest, fs.readFileSync(uri, 'binary'), 'binary');
+        fileStats = fs.lstatSync(uri);
+        fs.utimesSync(dest, fileStats.atime, fileStats.mtime);
       }
     }
-    results = [];
     for (j = 0, len1 = files.length; j < len1; j++) {
       file = files[j];
       uri = path.join(dir, file);
-      if (iShouldBackupDirectory(uri)) {
-        results.push(backupDirectory(uri));
+      if (iShouldBackupDirectory(uri, file, localIgnores, backedUpFiles)) {
+        backupDirectory(uri, localIgnores);
+      }
+    }
+    results = [];
+    for (file in backedUpFiles) {
+      if (!hasProp.call(backedUpFiles, file)) continue;
+      fileStats = backedUpFiles[file];
+      uri = path.join(dir, file);
+      if (!fileStats.deleted && !fs.existsSync(uri)) {
+        if (!fs.existsSync(destDir)) {
+          mkdirp.sync(destDir);
+        }
+        if (fileStats.isFile) {
+          results.push(fs.writeFileSync(path.join(destDir, file + '.deleted'), 'deleted'));
+        } else {
+          results.push(mkdirp.sync(path.join(destDir, file + '.deleted')));
+        }
+      } else {
+        results.push(void 0);
+      }
+    }
+    return results;
+  };
+
+  restoreDirectory = function(dir, out) {
+    var backedUpFiles, dest, destDir, file, fileStats, results, uri;
+    backedUpFiles = listBackedUpFiles(dir);
+    destDir = path.join(out, dir.replace(baseDir, ''));
+    for (file in backedUpFiles) {
+      fileStats = backedUpFiles[file];
+      if (!fileStats.deleted && fileStats.isFile) {
+        uri = path.join(fileStats.backupDir, dir, file);
+        dest = path.join(destDir, file);
+        if (!fs.existsSync(destDir)) {
+          mkdirp.sync(destDir);
+        }
+        fs.writeFileSync(dest, fs.readFileSync(uri, 'binary'), 'binary');
+        console.log('Written file', dest);
+      }
+    }
+    if (recursive) {
+      results = [];
+      for (file in backedUpFiles) {
+        fileStats = backedUpFiles[file];
+        if (!fileStats.deleted && fileStats.isDirectory) {
+          results.push(restoreDirectory(dir + '/' + file, out));
+        } else {
+          results.push(void 0);
+        }
+      }
+      return results;
+    }
+  };
+
+  listDirectory = function(dir) {
+    var backedUpFiles, file, fileStats, results;
+    backedUpFiles = listBackedUpFiles(dir);
+    for (file in backedUpFiles) {
+      fileStats = backedUpFiles[file];
+      if (!fileStats.deleted && fileStats.isDirectory) {
+        console.log(chalk.yellow.bold('[DIR]', file));
+      }
+    }
+    results = [];
+    for (file in backedUpFiles) {
+      fileStats = backedUpFiles[file];
+      if (!fileStats.deleted && fileStats.isFile) {
+        results.push(console.log(chalk.green.bold(file)));
       } else {
         results.push(void 0);
       }
@@ -79,15 +263,47 @@
   };
 
   rbak = function(args) {
-    var dir;
-    dir = path.resolve((args != null ? args.dir : void 0) || argv._[0] || process.cwd());
+    var command, dir;
+    command = (args != null ? args.command : void 0) || argv._[0] || 'backup';
+    dir = (args != null ? args.dir : void 0) || argv.dir || (command === 'backup' ? process.cwd() : '');
+    baseDir = baseOut = out = '';
+    if (command === 'backup') {
+      dir = path.resolve(dir);
+      baseOut = path.resolve((args != null ? args.out : void 0) || (args != null ? args.base : void 0) || argv.out || argv.base || process.cwd());
+      if (dir === baseOut) {
+        console.log(chalk.red.bold('Cannot backup into the folder you are backing up from'));
+        return false;
+      }
+      out = path.join(baseOut, dateFormatter('yyyyMMddhhmmss', new Date()));
+    } else {
+      baseOut = path.resolve((args != null ? args.base : void 0) || argv.base || process.cwd());
+      out = path.resolve((args != null ? args.out : void 0) || argv.out || '');
+    }
     baseDir = dir + '';
-    out = path.resolve((args != null ? args.out : void 0) || argv.out || process.cwd());
     ignores = ((args != null ? args.ignores : void 0) || (args != null ? args.ignore : void 0) || argv.ignores || argv.ignore || '').split(/,/g);
     if (((args != null ? args.recursive : void 0) || argv.recursive) === 'false') {
       recursive = false;
     }
-    return backupDirectory(dir);
+    if (((args != null ? args['respect-gitignores'] : void 0) || argv['respect-gitignores']) === 'false') {
+      respectGitignores = false;
+    }
+    backupDirs = listBackupDirectories(baseOut);
+    if (command !== 'backup' && !backupDirs.length) {
+      console.log('Cannot find backup.  Make sure ' + chalk.green.bold('--base') + ' is set correctly');
+      return false;
+    }
+    switch (command) {
+      case 'backup':
+        return backupDirectory(dir, []);
+      case 'list':
+      case 'ls':
+      case 'dir':
+        return listDirectory(dir);
+      case 'restore':
+        return restoreDirectory(dir, out);
+      default:
+        return console.log('Command not recognized');
+    }
   };
 
   if (require.main === module) {

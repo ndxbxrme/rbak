@@ -128,6 +128,12 @@
       if (minimatch(uri, '**/' + ignore)) {
         return false;
       }
+      if (minimatch(uri, ignore)) {
+        return false;
+      }
+      if (minimatch(file, ignore)) {
+        return false;
+      }
     }
     backup = backedUpFiles[file];
     if (backup && backup.isFile && backup.mtime + '' === fileStats.mtime + '' && !backup.deleted) {
@@ -151,13 +157,22 @@
       if (minimatch(uri, '**/' + ignore)) {
         return false;
       }
+      if (minimatch(uri, ignore)) {
+        return false;
+      }
+      if (minimatch(file, ignore)) {
+        return false;
+      }
     }
     for (j = 0, len1 = localIgnores.length; j < len1; j++) {
       ignore = localIgnores[j];
       if (minimatch(uri, '**/' + ignore)) {
         return false;
       }
-      if (uri.indexOf(ignore) !== -1) {
+      if (minimatch(uri, ignore)) {
+        return false;
+      }
+      if (minimatch(file, ignore)) {
         return false;
       }
     }

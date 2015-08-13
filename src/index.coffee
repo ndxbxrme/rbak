@@ -77,6 +77,8 @@ iShouldBackupFile = (uri, file, localIgnores, backedUpFiles) ->
     if minimatch(uri, '**/' + ignore) then return false
   for ignore in localIgnores
     if minimatch(uri, '**/' + ignore) then return false
+    if minimatch(uri, ignore) then return false
+    if minimatch(file, ignore) then return false
   backup = backedUpFiles[file]
   if backup and backup.isFile and  backup.mtime + '' is fileStats.mtime + '' and not backup.deleted
     return false
@@ -89,9 +91,12 @@ iShouldBackupDirectory = (uri, file, localIgnores, backedUpFiles) ->
   if not directoryIsGood then return false
   for ignore in ignores
     if minimatch(uri, '**/' + ignore) then return false
+    if minimatch(uri, ignore) then return false
+    if minimatch(file, ignore) then return false
   for ignore in localIgnores
     if minimatch(uri, '**/' + ignore) then return false
-    if uri.indexOf(ignore) isnt -1 then return false
+    if minimatch(uri, ignore) then return false
+    if minimatch(file, ignore) then return false
   backup = backedUpFiles[file]
   if backup and backup.isDirectory and backup.mtime + '' is fileStats.mtime + '' and not backup.deleted
     return false

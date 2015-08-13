@@ -287,6 +287,27 @@
   rbak = function(args, command) {
     var dir;
     command = command || argv._[0] || 'backup';
+    if (command === 'help' || argv.help) {
+      console.log('');
+      console.log(chalk.yellow.bold('usage'));
+      console.log('');
+      console.log('rbak [command] [options]');
+      console.log('');
+      console.log(chalk.yellow.bold('available commands'));
+      console.log('');
+      console.log(chalk.green.bold('backup') + ' - backup a directory');
+      console.log(chalk.green.bold('list') + ' - list the contents of a backed up directory');
+      console.log(chalk.green.bold('restore') + ' - restore a directory');
+      console.log('');
+      console.log(chalk.yellow.bold('options'));
+      console.log('');
+      console.log(chalk.green.bold('--base') + ' - the location of your backup');
+      console.log(chalk.green.bold('--dir') + ' - the directory you want to backup, list or restore');
+      console.log(chalk.green.bold('--ignore') + ' - a comma seperated list of files/folders to globally ignore');
+      console.log(chalk.green.bold('--recursive') + ' - recursively back up folders? true/false');
+      console.log(chalk.green.bold('--respect-gitignore') + ' - respect local .gitignores? true/false');
+      return false;
+    }
     dir = (args != null ? args.dir : void 0) || argv.dir || (command === 'backup' ? process.cwd() : '');
     baseDir = baseOut = out = '';
     if (command === 'backup') {

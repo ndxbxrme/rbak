@@ -157,6 +157,9 @@
       if (minimatch(uri, '**/' + ignore)) {
         return false;
       }
+      if (uri.indexOf(ignore) !== -1) {
+        return false;
+      }
     }
     backup = backedUpFiles[file];
     if (backup && backup.isDirectory && backup.mtime + '' === fileStats.mtime + '' && !backup.deleted) {

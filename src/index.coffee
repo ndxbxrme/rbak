@@ -107,7 +107,7 @@ backupDirectory = (dir, localIgnores) ->
     localIgnores = readGitignore(dir) or localIgnores
   backedUpFiles = listBackedUpFiles dir, baseDir
   destDir = path.join out, dir.replace(baseDir, '')
-  #console.log dir
+  console.log 'checking', dir
   files = fs.readdirSync dir
   for file in files
     uri = path.join dir, file

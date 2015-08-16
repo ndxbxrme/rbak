@@ -190,6 +190,7 @@
     }
     backedUpFiles = listBackedUpFiles(dir, baseDir);
     destDir = path.join(out, dir.replace(baseDir, ''));
+    console.log('checking', dir);
     files = fs.readdirSync(dir);
     for (i = 0, len = files.length; i < len; i++) {
       file = files[i];

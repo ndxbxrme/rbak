@@ -1,6 +1,6 @@
 {
   "name": "rbak",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "backup your files, respecting .gitignore",
   "main": "build/index.js",
   "bin": "build/index.js",

@@ -190,7 +190,6 @@
     }
     backedUpFiles = listBackedUpFiles(dir, baseDir);
     destDir = path.join(out, dir.replace(baseDir, ''));
-    console.log(dir);
     files = fs.readdirSync(dir);
     for (i = 0, len = files.length; i < len; i++) {
       file = files[i];
@@ -284,7 +283,7 @@
     return results;
   };
 
-  rbak = function(args, command) {
+  rbak = function(args, command, cb) {
     var dir;
     command = command || argv._[0] || 'backup';
     if (command === 'help' || argv.help) {
@@ -337,16 +336,20 @@
     }
     switch (command) {
       case 'backup':
-        return backupDirectory(dir, []);
+        backupDirectory(dir, []);
+        break;
       case 'list':
       case 'ls':
       case 'dir':
-        return listDirectory(dir);
+        listDirectory(dir);
+        break;
       case 'restore':
-        return restoreDirectory(dir, out);
+        restoreDirectory(dir, out);
+        break;
       default:
-        return console.log('Command not recognized');
+        console.log('Command not recognized');
     }
+    return typeof cb === "function" ? cb() : void 0;
   };
 
   if (require.main === module) {
@@ -354,14 +357,14 @@
   }
 
   module.exports = {
-    backup: function(args) {
-      return rbak(args, 'backup');
+    backup: function(args, cb) {
+      return rbak(args, 'backup', cb);
     },
-    list: function(args) {
-      return rbak(args, 'list');
+    list: function(args, cb) {
+      return rbak(args, 'list', cb);
     },
-    restore: function(args) {
-      return rbak(args, 'restore');
+    restore: function(args, cb) {
+      return rbak(args, 'restore', cb);
     }
   };
 

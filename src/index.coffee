@@ -107,7 +107,7 @@ backupDirectory = (dir, localIgnores) ->
     localIgnores = readGitignore(dir) or localIgnores
   backedUpFiles = listBackedUpFiles dir, baseDir
   destDir = path.join out, dir.replace(baseDir, '')
-  console.log dir
+  #console.log dir
   files = fs.readdirSync dir
   for file in files
     uri = path.join dir, file
@@ -156,7 +156,7 @@ listDirectory = (dir) ->
     if not fileStats.deleted and fileStats.isFile
       console.log chalk.green.bold('  ' + file)
   
-rbak = (args, command) ->
+rbak = (args, command, cb) ->
   command = command or argv._[0] or 'backup'
   if command is 'help' or argv.help
     console.log ''
@@ -203,14 +203,15 @@ rbak = (args, command) ->
     when 'list', 'ls', 'dir' then listDirectory dir
     when 'restore' then restoreDirectory dir, out
     else console.log 'Command not recognized'
+  cb?()
 
 if require.main is module
   rbak()
 
 module.exports = 
-  backup: (args) ->
-    rbak args, 'backup'
-  list: (args) ->
-    rbak args, 'list'
-  restore: (args) ->
-    rbak args, 'restore'
+  backup: (args, cb) ->
+    rbak args, 'backup', cb
+  list: (args, cb) ->
+    rbak args, 'list', cb
+  restore: (args, cb) ->
+    rbak args, 'restore', cb

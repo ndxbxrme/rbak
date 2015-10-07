@@ -3,7 +3,7 @@
 
 Rbak is a cumulative, time-based backup thingy which respects .gitignores so you don't end up with `node_modules` folders all over the place.
 
-Can be used globally or reuired as a module
+Can be used globally or required as a module
 
 ## Installing
 *Stand alone*
